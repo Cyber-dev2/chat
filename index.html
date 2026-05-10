@@ -77,13 +77,14 @@
     @media (min-width: 700px) {
       #app { height: 90vh; border-radius: 24px; margin: 20px; }
     }
+
     #login-screen {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       height: 100%; padding: 24px;
       background: transparent;
     }
     .login-card {
-      width: 100%; max-width: 320px;
+      width: 100%; max-width: 340px;
       background: var(--header-bg);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
@@ -92,6 +93,14 @@
       box-shadow: 0 8px 20px rgba(0,0,0,0.15);
       text-align: center;
       border: 1px solid var(--border);
+    }
+    .login-logo {
+      width: 140px;
+      margin-bottom: 20px;
+    }
+    .globe-fallback {
+      font-size: 80px;
+      margin-bottom: 20px;
     }
     .step { display: none; }
     .step.active { display: block; }
@@ -116,6 +125,7 @@
     }
     .btn-outline:hover { background: rgba(37,211,102,0.08); }
     .error { color: var(--danger); font-size: 13px; margin-top: 6px; font-weight: 500; }
+
     #chat-screen { display: none; flex-direction: column; height: 100%; background: transparent; }
     #chat-screen.active { display: flex; }
     #chat-header {
@@ -144,6 +154,7 @@
       display: flex; align-items: center; justify-content: center; transition: 0.2s;
     }
     .icon-btn:hover { background: var(--hover-row); }
+
     #messages {
       flex: 1; overflow-y: auto; padding: 16px 12px;
       display: flex; flex-direction: column; gap: 8px;
@@ -175,8 +186,43 @@
     .msg-status .seen-icon { color: var(--seen); font-weight: 500; }
     .media-msg img, .media-msg video { max-width: 220px; max-height: 220px; border-radius: 14px; display: block; }
     .audio-msg audio { max-width: 200px; }
-    
-    /* Yangi popup menyu */
+
+    /* Uch nuqtali menyu tugmasi */
+    .msg-options {
+      position: absolute;
+      top: 0px;
+      right: -36px;
+      width: 32px;
+      height: 32px;
+      background: var(--header-bg);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--text);
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s, background 0.2s;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 5;
+    }
+    .message-row.me .msg-options {
+      right: auto;
+      left: -36px;
+    }
+    .message-row:hover .msg-options,
+    .message-row.me:hover .msg-options,
+    .message-row.you:hover .msg-options {
+      opacity: 1;
+    }
+    .msg-options:hover {
+      background: var(--hover-row);
+    }
+
+    /* Popup menyu */
     .msg-popup {
       display: none;
       position: fixed;
@@ -189,7 +235,6 @@
       border: 1px solid var(--border);
       overflow: hidden;
     }
-    .msg-popup.show { display: block; }
     .msg-popup button {
       display: block;
       width: 100%;
@@ -273,9 +318,7 @@
       background: rgba(0,0,0,0.8); z-index: 55;
       display: none; align-items: center; justify-content: center;
     }
-    .image-preview-overlay img {
-      max-width: 90%; max-height: 90%; border-radius: 20px;
-    }
+    .image-preview-overlay img { max-width: 90%; max-height: 90%; border-radius: 20px; }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
   </style>
 </head>
@@ -284,7 +327,8 @@
     <!-- Login Screen -->
     <div id="login-screen">
       <div class="login-card">
-        <h2 style="margin-bottom:20px;">🔐 Messenger</h2>
+        <img src="logo1.png" alt="Logo" class="login-logo" onerror="this.style.display='none'; document.getElementById('globeFallback').style.display='block';">
+        <div id="globeFallback" class="globe-fallback" style="display:none;">🌐</div>
         <div id="step1" class="step active">
           <input type="text" id="username" placeholder="Login" autocomplete="off">
           <input type="password" id="password" placeholder="Parol">
@@ -433,7 +477,6 @@
     let incomingCallData = null;
     let incomingCallTimer = null;
 
-    // DOM
     const loginScreen = document.getElementById('login-screen');
     const chatScreen = document.getElementById('chat-screen');
     const step1 = document.getElementById('step1');
@@ -473,9 +516,8 @@
     let localStream;
     let callActive = false;
     let typingTimeout;
-    let currentCallType = 'video'; // default
+    let currentCallType = 'video';
 
-    // ============== YORDAMCHILAR ==============
     function getProfilePic(username) { return localStorage.getItem(`profile_${username}`) || ''; }
     function setProfilePic(username, base64) { localStorage.setItem(`profile_${username}`, base64); }
     function updatePartnerProfile() {
@@ -491,7 +533,7 @@
       updateBodyBackground();
     }
     function updateBodyBackground() {
-      if (!currentUser) { document.body.style.backgroundImage = ''; return; }
+      if (!currentUser) return;
       const isDark = document.body.classList.contains('dark');
       const userNum = currentUser.username === 'user_1' ? '1' : '2';
       const mode = isDark ? 'd' : 'l';
@@ -501,7 +543,6 @@
     darkToggle.addEventListener('change', () => { localStorage.setItem('dark', darkToggle.checked); applyTheme(); });
     function getMessageById(id) { return messages.find(m => m.id === id); }
 
-    // ============== FORMAT ==============
     function formatTime(ts) { if (!ts) return ''; return new Date(ts).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }); }
     function formatLastSeen(ts) {
       if (!ts) return 'nomaʼlum';
@@ -513,7 +554,10 @@
       return formatTime(ts);
     }
 
-    // ============== PRESENCE ==============
+    function setBodyBackground(imageFile) {
+      document.body.style.backgroundImage = `url('${imageFile}')`;
+    }
+
     function setupPresenceSystem() {
       const presenceRef = ref(db, `status/${currentUser.username}`);
       const connectedRef = ref(db, '.info/connected');
@@ -545,7 +589,6 @@
       });
     }
 
-    // ============== LISTENERS ==============
     function startListeners() {
       const messagesRef = ref(db, 'messages');
       onChildAdded(messagesRef, (snapshot) => {
@@ -587,10 +630,12 @@
         if (data.type === 'offer') {
           showIncomingCall(data);
         } else if (data.type === 'answer') {
-          if (pc) pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          if (pc) await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
           hideIncomingCall();
         } else if (data.type === 'candidate') {
-          if (pc) pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          if (pc) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch(e) {}
+          }
         } else if (data.type === 'reject' || data.type === 'hangup') {
           endCall();
           hideIncomingCall();
@@ -605,9 +650,8 @@
       });
     }
 
-    // ============== POPUP MENYU TIZIMI ==============
+    // Popup menyu – to'g'rilangan
     function showMsgPopup(x, y, msg) {
-      // avvalgi tinglovchini olib tashlash
       if (popupCloseHandler) {
         document.removeEventListener('click', popupCloseHandler);
         popupCloseHandler = null;
@@ -615,28 +659,24 @@
       clearTimeout(popupTimeout);
       selectedMsgId = msg.id;
       const isMe = msg.sender === currentUser.username;
-      
       editBtn.style.display = isMe && msg.type === 'text' ? 'block' : 'none';
       deleteBtn.style.display = isMe ? 'block' : 'none';
-      
-      // vaqtincha o'lchash
-      msgPopup.style.opacity = '0';
+
+      // Avval ko'rinmas holda display block qilib o'lcham olamiz
       msgPopup.style.display = 'block';
+      msgPopup.style.visibility = 'hidden';
       const w = msgPopup.offsetWidth;
       const h = msgPopup.offsetHeight;
-      msgPopup.style.display = '';
-      msgPopup.style.opacity = '';
-      
+      msgPopup.style.visibility = 'visible'; // ko'rinadigan qilamiz
+
       let left = Math.min(x, window.innerWidth - w - 10);
       let top = Math.min(y, window.innerHeight - h - 10);
       left = Math.max(10, left);
       top = Math.max(10, top);
-      
+
       msgPopup.style.top = top + 'px';
       msgPopup.style.left = left + 'px';
-      msgPopup.classList.add('show');
-      
-      // tashqariga bosganda yopish uchun biroz kechiktirib tinglovchi qo'shish
+
       popupTimeout = setTimeout(() => {
         popupCloseHandler = (e) => {
           if (!msgPopup.contains(e.target)) {
@@ -648,34 +688,48 @@
     }
 
     function hideMsgPopup() {
-      msgPopup.classList.remove('show');
+      msgPopup.style.display = 'none';
+      msgPopup.style.visibility = '';
       if (popupCloseHandler) {
         document.removeEventListener('click', popupCloseHandler);
         popupCloseHandler = null;
       }
     }
 
-    // Xabarlarga menyuni ulash
+    // Xabar menyusini ulash
     function addMessageMenu(row, msg) {
       row.addEventListener('dblclick', (e) => {
         e.preventDefault();
         showMsgPopup(e.clientX, e.clientY, msg);
       });
-      
-      let timer;
+
+      let touchTimer;
       row.addEventListener('touchstart', (e) => {
-        timer = setTimeout(() => {
+        touchTimer = setTimeout(() => {
           const touch = e.touches[0];
           showMsgPopup(touch.clientX, touch.clientY, msg);
         }, 500);
       });
-      row.addEventListener('touchend', () => clearTimeout(timer));
-      row.addEventListener('touchmove', () => clearTimeout(timer));
-      
+      row.addEventListener('touchend', () => clearTimeout(touchTimer));
+      row.addEventListener('touchmove', () => clearTimeout(touchTimer));
+
       row.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         showMsgPopup(e.clientX, e.clientY, msg);
       });
+
+      // Uch nuqta tugmasi
+      const optionsBtn = document.createElement('span');
+      optionsBtn.className = 'msg-options';
+      optionsBtn.innerHTML = '⋮';
+      optionsBtn.title = 'Xabar amallari';
+      optionsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const rect = optionsBtn.getBoundingClientRect();
+        showMsgPopup(rect.left + rect.width/2, rect.top - 5, msg);
+      });
+      row.appendChild(optionsBtn);
     }
 
     copyBtn.addEventListener('click', () => {
@@ -712,7 +766,6 @@
       }
     });
 
-    // ============== RENDER ==============
     function renderMessages() {
       messagesDiv.innerHTML = '';
       messages.forEach(msg => {
@@ -757,7 +810,8 @@
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // ============== YUBORISH ==============
+    function clearReply() { replyTarget = null; messageInput.placeholder = 'Xabar yozing...'; }
+
     async function sendMessage(type, data) {
       if (!currentUser) return;
       const msg = { sender: currentUser.username, type, content: '', fileData: null, replyTo: replyTarget ? replyTarget.id : null, edited: false, timestamp: serverTimestamp(), seenAt: null };
@@ -785,7 +839,6 @@
       const text = messageInput.value.trim(); if (text) { sendMessage('text', text); messageInput.value = ''; }
     });
 
-    // Fayl
     document.getElementById('attachBtn').addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
       const file = fileInput.files[0]; if (!file) return;
@@ -796,7 +849,6 @@
       reader.readAsDataURL(file); fileInput.value = '';
     });
 
-    // Ovoz
     document.getElementById('voiceBtn').addEventListener('click', async () => {
       if (mediaRecorder && mediaRecorder.state === 'recording') { mediaRecorder.stop(); document.getElementById('voiceBtn').textContent = '🎤'; return; }
       try {
@@ -816,7 +868,6 @@
       } catch (err) { alert('Mikrofon ruxsati kerak'); update(ref(db, `typing/${currentUser.username}`), { status: 'idle' }); }
     });
 
-    // Sticker
     const stickers = ['😀','😂','😍','😎','👍','👋','🎉','❤️','🔥','😢','😡','🥳'];
     document.getElementById('stickerBtn').addEventListener('click', () => stickerPanel.classList.toggle('active'));
     const sp = document.getElementById('stickerPanel');
@@ -826,12 +877,11 @@
       sp.appendChild(span);
     });
 
-    // ============== QO'NG'IROQ (YANGILANGAN) ==============
+    // Qo'ng'iroq tizimi
     document.getElementById('callBtn').addEventListener('click', () => {
       if (callActive) return;
       callTypeModal.classList.add('active');
     });
-
     document.getElementById('audioCallBtn').addEventListener('click', () => {
       callTypeModal.classList.remove('active');
       startCall('audio');
@@ -852,32 +902,41 @@
       try {
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         localVideo.srcObject = localStream;
-        if (callType === 'audio') {
-          localVideo.style.display = 'none'; // audio only da local video ko'rinmasin
-        } else {
-          localVideo.style.display = '';
-        }
+        if (callType === 'audio') localVideo.style.display = 'none';
+        else localVideo.style.display = '';
         createPeerConnection();
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        set(ref(db, 'calls/current'), { 
-          type: 'offer', 
-          sdp: pc.localDescription, 
-          from: currentUser.username,
-          callType: callType 
-        });
+        set(ref(db, 'calls/current'), { type: 'offer', sdp: pc.localDescription, from: currentUser.username, callType });
       } catch (e) {
-        alert('Media qurilmalariga ruxsat kerak');
+        alert('Kamera/mikrofon ruxsati kerak');
         callModal.classList.remove('active');
         callActive = false;
       }
     }
 
     function createPeerConnection() {
-      pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-      pc.onicecandidate = e => { if (e.candidate) set(ref(db, 'calls/current'), { type: 'candidate', candidate: e.candidate, from: currentUser.username }); };
-      pc.ontrack = e => { if (e.streams[0]) remoteVideo.srcObject = e.streams[0]; };
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          {
+            urls: 'turn:openrelay.metered.ca:443',
+            credential: 'openrelayproject',
+            username: 'openrelayproject'
+          }
+        ]
+      });
+      pc.onicecandidate = e => {
+        if (e.candidate) {
+          set(ref(db, 'calls/current'), { type: 'candidate', candidate: e.candidate, from: currentUser.username });
+        }
+      };
+      pc.ontrack = e => {
+        if (e.streams[0]) remoteVideo.srcObject = e.streams[0];
+      };
+      if (localStream) {
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      }
     }
 
     function showIncomingCall(data) {
@@ -886,8 +945,6 @@
       document.getElementById('incomingCallTitle').textContent = `📞 ${partner.nickname} qo'ng'iroq qilmoqda`;
       document.getElementById('incomingCallInfo').textContent = data.callType === 'audio' ? 'Audio qo\'ng\'iroq' : 'Video qo\'ng\'iroq';
       incomingCallModal.classList.add('active');
-      
-      // 20 sekundlik avtomatik rad etish taymeri
       incomingCallTimer = setTimeout(() => {
         if (incomingCallData) {
           set(ref(db, 'calls/current'), { type: 'reject', from: currentUser.username });
@@ -895,8 +952,6 @@
           showNotification('Qo\'ng\'iroq vaqti tugadi', `${partner.nickname} qo\'ng\'irog\'i avtomatik rad etildi`);
         }
       }, 20000);
-      
-      // brauzer bildirishnomasi
       if (document.visibilityState === 'hidden' || !document.hasFocus()) {
         showNotification('Kiruvchi qo\'ng\'iroq', `${partner.nickname} sizga qo\'ng\'iroq qilmoqda`);
       }
@@ -917,11 +972,8 @@
       try {
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         localVideo.srcObject = localStream;
-        if (currentCallType === 'audio') {
-          localVideo.style.display = 'none';
-        } else {
-          localVideo.style.display = '';
-        }
+        if (currentCallType === 'audio') localVideo.style.display = 'none';
+        else localVideo.style.display = '';
         createPeerConnection();
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
         const answer = await pc.createAnswer();
@@ -940,9 +992,6 @@
       set(ref(db, 'calls/current'), { type: 'reject', from: currentUser.username });
     });
 
-    async function answerCall(offerSdp) { // eski funksiya endi ishlatilmaydi
-    }
-
     function endCall() {
       if (pc) { pc.close(); pc = null; }
       if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
@@ -950,14 +999,11 @@
       remoteVideo.srcObject = null;
       callModal.classList.remove('active');
       callActive = false;
-      if (incomingCallData) {
-        hideIncomingCall();
-      }
+      if (incomingCallData) hideIncomingCall();
       set(ref(db, 'calls/current'), { type: 'hangup', from: currentUser.username });
     }
     document.getElementById('hangupBtn').addEventListener('click', endCall);
 
-    // ============== PROFIL RASMI PREVIEW ==============
     partnerPic.addEventListener('click', () => {
       const pic = getProfilePic(partner.username);
       if (pic) {
@@ -965,15 +1011,10 @@
         imagePreview.style.display = 'flex';
       }
     });
-    imagePreview.addEventListener('click', () => {
-      imagePreview.style.display = 'none';
-    });
+    imagePreview.addEventListener('click', () => { imagePreview.style.display = 'none'; });
 
-    // ============== BILDIRISHNOMALAR ==============
     function requestNotificationPermission() {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
+      if (Notification.permission === 'default') Notification.requestPermission();
     }
     function showNotification(title, body) {
       if (Notification.permission === 'granted') {
@@ -981,7 +1022,6 @@
       }
     }
 
-    // ============== SOZLAMALAR ==============
     document.getElementById('settingsBtn').addEventListener('click', () => settingsModal.classList.add('active'));
     document.getElementById('closeSettingsBtn').addEventListener('click', () => settingsModal.classList.remove('active'));
     document.getElementById('savePicBtn').addEventListener('click', () => {
@@ -996,12 +1036,12 @@
       chatScreen.classList.remove('active'); document.body.style.backgroundImage = ''; loginScreen.style.display = 'flex';
       step1.classList.add('active'); step2.classList.remove('active');
       usernameInput.value = ''; passwordInput.value = ''; keywordInput.value = ''; settingsModal.classList.remove('active');
+      setBodyBackground('1.png');
     });
 
-    // ============== LOGIN ==============
     document.getElementById('nextBtn').addEventListener('click', () => {
       const u = usernameInput.value.trim(); const p = passwordInput.value;
-      const user = USERS[u]; if (user && user.password === p) { currentUser = user; loginError.textContent = ''; step1.classList.remove('active'); step2.classList.add('active'); keywordInput.focus(); }
+      const user = USERS[u]; if (user && user.password === p) { currentUser = user; loginError.textContent = ''; step1.classList.remove('active'); step2.classList.add('active'); keywordInput.focus(); setBodyBackground('2.png'); }
       else loginError.textContent = 'Noto\'g\'ri login yoki parol';
     });
     document.getElementById('loginBtn').addEventListener('click', async () => {
@@ -1019,6 +1059,7 @@
       window.addEventListener('beforeunload', () => { if (currentUser) sendPresence(false); });
     }
 
+    setBodyBackground('1.png');
     applyTheme();
   </script>
 </body>
