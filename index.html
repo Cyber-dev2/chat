@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
-  <link rel="icon" type="image/png" href="logo.png">
   <title>Shaxsiy Messenger</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
@@ -47,20 +46,29 @@
       --popup-hover: #3a4954;
     }
     body {
-      background: var(--bg);
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      background-attachment: fixed;
-      color: var(--text);
+      margin: 0;
       height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      transition: background 0.3s, color 0.3s;
-      margin: 0;
+      transition: color 0.3s;
+      background: #000; /* fallback */
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    /* Video fon – endi tiniq, faqat kerakli ekranda ko'rinadi */
+    #loginVideo {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -2;
+      /* Filtr butunlay olib tashlandi – video aniq */
     }
     #app {
+      position: relative;
+      z-index: 1;
       width: 100%;
       max-width: 500px;
       height: 100vh;
@@ -71,7 +79,6 @@
       -webkit-backdrop-filter: blur(12px);
       box-shadow: 0 8px 32px rgba(0,0,0,0.2);
       border: 1px solid var(--border);
-      position: relative;
       overflow: hidden;
       transition: all 0.3s;
     }
@@ -188,7 +195,6 @@
     .media-msg img, .media-msg video { max-width: 220px; max-height: 220px; border-radius: 14px; display: block; }
     .audio-msg audio { max-width: 200px; }
 
-    /* Uch nuqtali menyu tugmasi */
     .msg-options {
       position: absolute;
       top: 0px;
@@ -223,11 +229,10 @@
       background: var(--hover-row);
     }
 
-    /* Popup menyu */
     .msg-popup {
       display: none;
       position: fixed;
-      z-index: 50;
+      z-index: 100;
       background: var(--popup-bg);
       border-radius: 12px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.18);
@@ -320,10 +325,21 @@
       display: none; align-items: center; justify-content: center;
     }
     .image-preview-overlay img { max-width: 90%; max-height: 90%; border-radius: 20px; }
+    .vol-slider { width: 100%; margin-top: 8px; accent-color: var(--accent); }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
   </style>
 </head>
 <body>
+  <!-- Video fon (body ichida doimiy, login ekranida ko'rinadi) -->
+  <video id="loginVideo" autoplay muted loop playsinline>
+    <source src="1.mp4" type="video/mp4">
+  </video>
+
+  <!-- Orqa fon musiqalari -->
+  <audio id="notificationSound" src="notification.mp3" preload="auto"></audio>
+  <audio id="bgMusicLight" src="l.m4a" preload="auto" loop></audio>
+  <audio id="bgMusicDark" src="d.m4a" preload="auto" loop></audio>
+
   <div id="app">
     <!-- Login Screen -->
     <div id="login-screen">
@@ -369,14 +385,6 @@
       </div>
       <input type="file" id="fileInput" accept="image/*,video/*" style="display:none">
       <div class="sticker-panel" id="stickerPanel"></div>
-    </div>
-
-    <!-- Yangi Popup Menyu -->
-    <div class="msg-popup" id="msgPopup">
-      <button id="copyMsgBtn">📋 Nusxalash</button>
-      <button id="replyMsgBtn">↩️ Reply</button>
-      <button id="editMsgBtn" style="display:none;">✏️ Tahrirlash</button>
-      <button class="delete-opt" id="deleteMsgBtn" style="display:none;">🗑️ O‘chirish</button>
     </div>
 
     <!-- Call Modal -->
@@ -429,6 +437,24 @@
           </label>
         </div>
         <div class="setting-row">
+          <span>🎵 Orqa fon musiqasi</span>
+          <label class="switch">
+            <input type="checkbox" id="bgMusicToggle">
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <div class="setting-row" style="flex-direction: column; align-items: flex-start;">
+          <span>🔊 Musiqa ovozi</span>
+          <input type="range" id="bgMusicVolume" class="vol-slider" min="0" max="1" step="0.1" value="0.5">
+        </div>
+        <div class="setting-row">
+          <span>🔔 Bildirishnomalar</span>
+          <label class="switch">
+            <input type="checkbox" id="notificationsToggle">
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <div class="setting-row">
           <span>📷 Profil rasmi</span>
           <div class="pic-upload">
             <label for="picUpload" class="upload-btn">Rasm tanlash</label>
@@ -442,6 +468,14 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Popup menyu -->
+  <div class="msg-popup" id="msgPopup">
+    <button id="copyMsgBtn">📋 Nusxalash</button>
+    <button id="replyMsgBtn">↩️ Reply</button>
+    <button id="editMsgBtn" style="display:none;">✏️ Tahrirlash</button>
+    <button class="delete-opt" id="deleteMsgBtn" style="display:none;">🗑️ O‘chirish</button>
   </div>
 
   <script type="module">
@@ -461,9 +495,13 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    // ---------- SHIFRLANGAN LOGIN MA'LUMOTLARI ----------
+    const enc = (s) => btoa(s);
+    const dec = (s) => atob(s);
+
     const USERS = {
-      user_1: { username: 'user_1', password: 'u.s.e.r_1', nickname: 'Jasurbek' },
-      user_2: { username: 'user_2', password: 'u.s.e.r_2', nickname: 'Dilnura' }
+      [dec('dXNlcl8x')]: { username: dec('dXNlcl8x'), password: dec('dS5zLmUucl8x'), nickname: 'Jasurbek' },
+      [dec('dXNlcl8y')]: { username: dec('dXNlcl8y'), password: dec('dS5zLmUucl8y'), nickname: 'Dilnura' }
     };
     const KEYWORD = 'only2';
 
@@ -477,7 +515,10 @@
     let popupTimeout = null;
     let incomingCallData = null;
     let incomingCallTimer = null;
+    let unreadCount = 0;
+    const originalTitle = document.title;
 
+    // DOM elementlari
     const loginScreen = document.getElementById('login-screen');
     const chatScreen = document.getElementById('chat-screen');
     const step1 = document.getElementById('step1');
@@ -510,6 +551,13 @@
     const incomingCallModal = document.getElementById('incomingCallModal');
     const imagePreview = document.getElementById('imagePreview');
     const previewImg = document.getElementById('previewImg');
+    const notificationSound = document.getElementById('notificationSound');
+    const bgMusicLight = document.getElementById('bgMusicLight');
+    const bgMusicDark = document.getElementById('bgMusicDark');
+    const bgMusicToggle = document.getElementById('bgMusicToggle');
+    const bgMusicVolume = document.getElementById('bgMusicVolume');
+    const notificationsToggle = document.getElementById('notificationsToggle');
+    const loginVideo = document.getElementById('loginVideo');
 
     let mediaRecorder;
     let audioChunks = [];
@@ -518,6 +566,107 @@
     let callActive = false;
     let typingTimeout;
     let currentCallType = 'video';
+    let bgMusicEnabled = localStorage.getItem('bgMusicEnabled') === 'true';
+    let bgMusicVol = parseFloat(localStorage.getItem('bgMusicVolume') || '0.5');
+    let notificationsEnabled = localStorage.getItem('notificationsEnabled') !== 'false';
+
+    bgMusicToggle.checked = bgMusicEnabled;
+    bgMusicVolume.value = bgMusicVol;
+    notificationsToggle.checked = notificationsEnabled;
+
+    // Video fonni boshqarish
+    function setLoginVideo(src) {
+      if (loginVideo) {
+        loginVideo.style.display = 'block';
+        const source = loginVideo.querySelector('source');
+        if (source) {
+          source.src = src;
+          loginVideo.load();
+          loginVideo.play().catch(() => {});
+        }
+      }
+    }
+    function hideLoginVideo() {
+      if (loginVideo) {
+        loginVideo.pause();
+        loginVideo.style.display = 'none';
+      }
+    }
+
+    // Orqa fon musiqasi
+    function updateBgMusic() {
+      const isDark = document.body.classList.contains('dark');
+      const activeAudio = isDark ? bgMusicDark : bgMusicLight;
+      const inactiveAudio = isDark ? bgMusicLight : bgMusicDark;
+      inactiveAudio.pause();
+      inactiveAudio.currentTime = 0;
+      if (bgMusicEnabled && currentUser) {
+        activeAudio.volume = bgMusicVol;
+        activeAudio.play().catch(() => {});
+      } else {
+        activeAudio.pause();
+      }
+    }
+
+    bgMusicToggle.addEventListener('change', () => {
+      bgMusicEnabled = bgMusicToggle.checked;
+      localStorage.setItem('bgMusicEnabled', bgMusicEnabled);
+      updateBgMusic();
+    });
+
+    bgMusicVolume.addEventListener('input', () => {
+      bgMusicVol = parseFloat(bgMusicVolume.value);
+      localStorage.setItem('bgMusicVolume', bgMusicVol);
+      if (bgMusicEnabled) {
+        const isDark = document.body.classList.contains('dark');
+        const activeAudio = isDark ? bgMusicDark : bgMusicLight;
+        activeAudio.volume = bgMusicVol;
+      }
+    });
+
+    notificationsToggle.addEventListener('change', () => {
+      notificationsEnabled = notificationsToggle.checked;
+      localStorage.setItem('notificationsEnabled', notificationsEnabled);
+    });
+
+    bgMusicLight.addEventListener('ended', () => {
+      if (bgMusicEnabled && !document.body.classList.contains('dark')) {
+        setTimeout(() => { if (bgMusicEnabled && !document.body.classList.contains('dark')) bgMusicLight.play().catch(() => {}); }, 5000);
+      }
+    });
+    bgMusicDark.addEventListener('ended', () => {
+      if (bgMusicEnabled && document.body.classList.contains('dark')) {
+        setTimeout(() => { if (bgMusicEnabled && document.body.classList.contains('dark')) bgMusicDark.play().catch(() => {}); }, 5000);
+      }
+    });
+
+    function playNotificationSound() {
+      if (notificationSound && notificationsEnabled) {
+        notificationSound.currentTime = 0;
+        notificationSound.play().catch(() => {});
+      }
+    }
+
+    function updateTitle() {
+      document.title = unreadCount > 0 ? `(${unreadCount}) ${originalTitle}` : originalTitle;
+    }
+
+    function incrementUnread() {
+      if (!chatActive || document.visibilityState === 'hidden' || !document.hasFocus()) {
+        unreadCount++;
+        updateTitle();
+      }
+    }
+
+    function resetUnread() {
+      unreadCount = 0;
+      updateTitle();
+    }
+
+    window.addEventListener('focus', () => { if (chatActive) resetUnread(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && chatActive) resetUnread();
+    });
 
     function getProfilePic(username) { return localStorage.getItem(`profile_${username}`) || ''; }
     function setProfilePic(username, base64) { localStorage.setItem(`profile_${username}`, base64); }
@@ -532,6 +681,7 @@
       document.body.classList.toggle('dark', dark);
       if (darkToggle) darkToggle.checked = dark;
       updateBodyBackground();
+      updateBgMusic();
     }
     function updateBodyBackground() {
       if (!currentUser) return;
@@ -553,10 +703,6 @@
       if (diff < 3600000) return Math.floor(diff / 60000) + ' daqiqa oldin';
       if (diff < 86400000) return Math.floor(diff / 3600000) + ' soat oldin';
       return formatTime(ts);
-    }
-
-    function setBodyBackground(imageFile) {
-      document.body.style.backgroundImage = `url('${imageFile}')`;
     }
 
     function setupPresenceSystem() {
@@ -597,8 +743,14 @@
         if (!msg.timestamp) msg.timestamp = Date.now();
         messages.push(msg);
         renderMessages();
-        if (msg.sender === partner.username && chatActive && !msg.seenAt) {
-          update(ref(db, `messages/${msg.id}`), { seenAt: serverTimestamp() });
+        if (msg.sender === partner.username) {
+          if (chatActive && !msg.seenAt) {
+            update(ref(db, `messages/${msg.id}`), { seenAt: serverTimestamp() });
+          }
+          if (currentUser && msg.sender !== currentUser.username) {
+            playNotificationSound();
+            incrementUnread();
+          }
         }
       });
       onChildChanged(messagesRef, (snapshot) => {
@@ -651,7 +803,6 @@
       });
     }
 
-    // Popup menyu – to'g'rilangan
     function showMsgPopup(x, y, msg) {
       if (popupCloseHandler) {
         document.removeEventListener('click', popupCloseHandler);
@@ -663,12 +814,11 @@
       editBtn.style.display = isMe && msg.type === 'text' ? 'block' : 'none';
       deleteBtn.style.display = isMe ? 'block' : 'none';
 
-      // Avval ko'rinmas holda display block qilib o'lcham olamiz
       msgPopup.style.display = 'block';
       msgPopup.style.visibility = 'hidden';
       const w = msgPopup.offsetWidth;
       const h = msgPopup.offsetHeight;
-      msgPopup.style.visibility = 'visible'; // ko'rinadigan qilamiz
+      msgPopup.style.visibility = 'visible';
 
       let left = Math.min(x, window.innerWidth - w - 10);
       let top = Math.min(y, window.innerHeight - h - 10);
@@ -697,7 +847,6 @@
       }
     }
 
-    // Xabar menyusini ulash
     function addMessageMenu(row, msg) {
       row.addEventListener('dblclick', (e) => {
         e.preventDefault();
@@ -719,7 +868,6 @@
         showMsgPopup(e.clientX, e.clientY, msg);
       });
 
-      // Uch nuqta tugmasi
       const optionsBtn = document.createElement('span');
       optionsBtn.className = 'msg-options';
       optionsBtn.innerHTML = '⋮';
@@ -950,11 +1098,11 @@
         if (incomingCallData) {
           set(ref(db, 'calls/current'), { type: 'reject', from: currentUser.username });
           hideIncomingCall();
-          showNotification('Qo\'ng\'iroq vaqti tugadi', `${partner.nickname} qo\'ng\'irog\'i avtomatik rad etildi`);
+          if (notificationsEnabled) showNotification('Qo\'ng\'iroq vaqti tugadi', `${partner.nickname} qo\'ng\'irog\'i avtomatik rad etildi`);
         }
       }, 20000);
       if (document.visibilityState === 'hidden' || !document.hasFocus()) {
-        showNotification('Kiruvchi qo\'ng\'iroq', `${partner.nickname} sizga qo\'ng\'iroq qilmoqda`);
+        if (notificationsEnabled) showNotification('Kiruvchi qo\'ng\'iroq', `${partner.nickname} sizga qo\'ng\'iroq qilmoqda`);
       }
     }
 
@@ -1018,11 +1166,12 @@
       if (Notification.permission === 'default') Notification.requestPermission();
     }
     function showNotification(title, body) {
-      if (Notification.permission === 'granted') {
+      if (Notification.permission === 'granted' && notificationsEnabled) {
         new Notification(title, { body, icon: '/favicon.ico' });
       }
     }
 
+    // Sozlamalar
     document.getElementById('settingsBtn').addEventListener('click', () => settingsModal.classList.add('active'));
     document.getElementById('closeSettingsBtn').addEventListener('click', () => settingsModal.classList.remove('active'));
     document.getElementById('savePicBtn').addEventListener('click', () => {
@@ -1037,12 +1186,14 @@
       chatScreen.classList.remove('active'); document.body.style.backgroundImage = ''; loginScreen.style.display = 'flex';
       step1.classList.add('active'); step2.classList.remove('active');
       usernameInput.value = ''; passwordInput.value = ''; keywordInput.value = ''; settingsModal.classList.remove('active');
-      setBodyBackground('1.png');
+      setLoginVideo('1.mp4');
+      bgMusicLight.pause(); bgMusicDark.pause();
     });
 
+    // Login
     document.getElementById('nextBtn').addEventListener('click', () => {
       const u = usernameInput.value.trim(); const p = passwordInput.value;
-      const user = USERS[u]; if (user && user.password === p) { currentUser = user; loginError.textContent = ''; step1.classList.remove('active'); step2.classList.add('active'); keywordInput.focus(); setBodyBackground('2.png'); }
+      const user = USERS[u]; if (user && user.password === p) { currentUser = user; loginError.textContent = ''; step1.classList.remove('active'); step2.classList.add('active'); keywordInput.focus(); setLoginVideo('2.mp4'); }
       else loginError.textContent = 'Noto\'g\'ri login yoki parol';
     });
     document.getElementById('loginBtn').addEventListener('click', async () => {
@@ -1051,16 +1202,19 @@
     });
 
     async function startChat() {
+      hideLoginVideo(); // Chatga o'tganda video fon yashiriladi
       partner = currentUser.username === 'user_1' ? USERS.user_2 : USERS.user_1;
       partnerNameEl.textContent = partner.nickname; updatePartnerProfile();
       loginScreen.style.display = 'none'; chatScreen.classList.add('active'); chatActive = true;
       applyTheme(); updateBodyBackground(); setupPresenceSystem(); startListeners();
       requestNotificationPermission();
+      resetUnread();
       const myPic = getProfilePic(currentUser.username); if (myPic) set(ref(db, `profiles/${currentUser.username}`), myPic);
       window.addEventListener('beforeunload', () => { if (currentUser) sendPresence(false); });
     }
 
-    setBodyBackground('1.png');
+    // Dastlabki video va theme
+    setLoginVideo('1.mp4');
     applyTheme();
   </script>
 </body>
