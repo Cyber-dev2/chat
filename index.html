@@ -52,10 +52,9 @@
       justify-content: center;
       align-items: center;
       transition: color 0.3s;
-      background: #000; /* fallback */
+      background: #000;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     }
-    /* Video fon – endi tiniq, faqat kerakli ekranda ko'rinadi */
     #loginVideo {
       position: fixed;
       top: 0;
@@ -64,7 +63,6 @@
       height: 100%;
       object-fit: cover;
       z-index: -2;
-      /* Filtr butunlay olib tashlandi – video aniq */
     }
     #app {
       position: relative;
@@ -330,18 +328,15 @@
   </style>
 </head>
 <body>
-  <!-- Video fon (body ichida doimiy, login ekranida ko'rinadi) -->
   <video id="loginVideo" autoplay muted loop playsinline>
     <source src="1.mp4" type="video/mp4">
   </video>
 
-  <!-- Orqa fon musiqalari -->
   <audio id="notificationSound" src="notification.mp3" preload="auto"></audio>
   <audio id="bgMusicLight" src="l.m4a" preload="auto" loop></audio>
   <audio id="bgMusicDark" src="d.m4a" preload="auto" loop></audio>
 
   <div id="app">
-    <!-- Login Screen -->
     <div id="login-screen">
       <div class="login-card">
         <img src="logo1.png" alt="Logo" class="login-logo" onerror="this.style.display='none'; document.getElementById('globeFallback').style.display='block';">
@@ -361,7 +356,6 @@
       </div>
     </div>
 
-    <!-- Chat Screen -->
     <div id="chat-screen">
       <div id="chat-header">
         <div class="profile-pic" id="partnerPic"></div>
@@ -387,7 +381,6 @@
       <div class="sticker-panel" id="stickerPanel"></div>
     </div>
 
-    <!-- Call Modal -->
     <div class="call-modal" id="callModal">
       <div class="call-container">
         <video id="remoteVideo" autoplay playsinline></video>
@@ -398,7 +391,6 @@
       </div>
     </div>
 
-    <!-- Call Type Selection Modal -->
     <div class="modal-overlay" id="callTypeModal">
       <div class="modal-card">
         <h3>Qo'ng'iroq turi</h3>
@@ -408,7 +400,6 @@
       </div>
     </div>
 
-    <!-- Incoming Call Modal -->
     <div class="modal-overlay" id="incomingCallModal">
       <div class="modal-card">
         <h3 id="incomingCallTitle">📞 Qo'ng'iroq...</h3>
@@ -420,12 +411,10 @@
       </div>
     </div>
 
-    <!-- Profile Picture Preview Overlay -->
     <div class="image-preview-overlay" id="imagePreview">
       <img src="" alt="Profil rasmi" id="previewImg">
     </div>
 
-    <!-- Settings Modal -->
     <div class="modal-overlay" id="settingsModal">
       <div class="modal-card">
         <h3>Sozlamalar</h3>
@@ -470,7 +459,6 @@
     </div>
   </div>
 
-  <!-- Popup menyu -->
   <div class="msg-popup" id="msgPopup">
     <button id="copyMsgBtn">📋 Nusxalash</button>
     <button id="replyMsgBtn">↩️ Reply</button>
@@ -495,15 +483,14 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // ---------- SHIFRLANGAN LOGIN MA'LUMOTLARI ----------
     const enc = (s) => btoa(s);
     const dec = (s) => atob(s);
-
     const USERS = {
       [dec('dXNlcl8x')]: { username: dec('dXNlcl8x'), password: dec('dS5zLmUucl8x'), nickname: 'Jasurbek' },
       [dec('dXNlcl8y')]: { username: dec('dXNlcl8y'), password: dec('dS5zLmUucl8y'), nickname: 'Dilnura' }
     };
     const KEYWORD = 'only2';
+    const CALL_PATH = 'calls/shared_call';
 
     let currentUser = null;
     let partner = null;
@@ -518,7 +505,6 @@
     let unreadCount = 0;
     const originalTitle = document.title;
 
-    // DOM elementlari
     const loginScreen = document.getElementById('login-screen');
     const chatScreen = document.getElementById('chat-screen');
     const step1 = document.getElementById('step1');
@@ -574,7 +560,6 @@
     bgMusicVolume.value = bgMusicVol;
     notificationsToggle.checked = notificationsEnabled;
 
-    // Video fonni boshqarish
     function setLoginVideo(src) {
       if (loginVideo) {
         loginVideo.style.display = 'block';
@@ -593,7 +578,6 @@
       }
     }
 
-    // Orqa fon musiqasi
     function updateBgMusic() {
       const isDark = document.body.classList.contains('dark');
       const activeAudio = isDark ? bgMusicDark : bgMusicLight;
@@ -613,7 +597,6 @@
       localStorage.setItem('bgMusicEnabled', bgMusicEnabled);
       updateBgMusic();
     });
-
     bgMusicVolume.addEventListener('input', () => {
       bgMusicVol = parseFloat(bgMusicVolume.value);
       localStorage.setItem('bgMusicVolume', bgMusicVol);
@@ -623,7 +606,6 @@
         activeAudio.volume = bgMusicVol;
       }
     });
-
     notificationsToggle.addEventListener('change', () => {
       notificationsEnabled = notificationsToggle.checked;
       localStorage.setItem('notificationsEnabled', notificationsEnabled);
@@ -650,19 +632,16 @@
     function updateTitle() {
       document.title = unreadCount > 0 ? `(${unreadCount}) ${originalTitle}` : originalTitle;
     }
-
     function incrementUnread() {
       if (!chatActive || document.visibilityState === 'hidden' || !document.hasFocus()) {
         unreadCount++;
         updateTitle();
       }
     }
-
     function resetUnread() {
       unreadCount = 0;
       updateTitle();
     }
-
     window.addEventListener('focus', () => { if (chatActive) resetUnread(); });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && chatActive) resetUnread();
@@ -736,6 +715,40 @@
       });
     }
 
+    // Qo'ng'iroq signallarini kuzatish
+    function monitorCallSignals() {
+      // Taklif kelganda
+      onValue(ref(db, `${CALL_PATH}/offer`), async (snap) => {
+        const data = snap.val();
+        if (!data || !partner || data.from === currentUser?.username) return;
+        if (callActive || incomingCallData) return;
+        showIncomingCall(data);
+      });
+      // Javob kelganda
+      onValue(ref(db, `${CALL_PATH}/answer`), async (snap) => {
+        const data = snap.val();
+        if (!data || !pc || data.from === currentUser?.username) return;
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          hideIncomingCall();
+        } catch (e) { console.warn('answer setRemoteDescription', e); }
+      });
+      // Nomzodlar kelganda
+      onChildAdded(ref(db, `${CALL_PATH}/candidates`), async (snap) => {
+        const candidate = snap.val();
+        if (!candidate || !pc || candidate.from === currentUser?.username) return;
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (e) { console.warn('addIceCandidate', e); }
+      });
+      // Qo'ng'iroq tugatilganda
+      onValue(ref(db, `${CALL_PATH}/hangup`), (snap) => {
+        const data = snap.val();
+        if (!data || data.from === currentUser?.username) return;
+        endCall();
+      });
+    }
+
     function startListeners() {
       const messagesRef = ref(db, 'messages');
       onChildAdded(messagesRef, (snapshot) => {
@@ -743,7 +756,7 @@
         if (!msg.timestamp) msg.timestamp = Date.now();
         messages.push(msg);
         renderMessages();
-        if (msg.sender === partner.username) {
+        if (msg.sender === partner?.username) {
           if (chatActive && !msg.seenAt) {
             update(ref(db, `messages/${msg.id}`), { seenAt: serverTimestamp() });
           }
@@ -764,7 +777,7 @@
         renderMessages();
         if (replyTarget && replyTarget.id === deletedId) clearReply();
       });
-      const typingRef = ref(db, `typing/${partner.username}`);
+      const typingRef = ref(db, `typing/${partner?.username}`);
       onValue(typingRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -776,25 +789,8 @@
         } else { typingIndicator.style.display = 'none'; }
       });
       listenPresence();
-      const callRef = ref(db, 'calls/current');
-      onValue(callRef, async (snapshot) => {
-        const data = snapshot.val();
-        if (!data || !partner || data.from === currentUser.username) return;
-        if (data.type === 'offer') {
-          showIncomingCall(data);
-        } else if (data.type === 'answer') {
-          if (pc) await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-          hideIncomingCall();
-        } else if (data.type === 'candidate') {
-          if (pc) {
-            try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch(e) {}
-          }
-        } else if (data.type === 'reject' || data.type === 'hangup') {
-          endCall();
-          hideIncomingCall();
-        }
-      });
-      const profileRef = ref(db, `profiles/${partner.username}`);
+      monitorCallSignals();
+      const profileRef = ref(db, `profiles/${partner?.username}`);
       onValue(profileRef, (snapshot) => {
         const base64 = snapshot.val();
         if (base64) setProfilePic(partner.username, base64);
@@ -813,31 +809,24 @@
       const isMe = msg.sender === currentUser.username;
       editBtn.style.display = isMe && msg.type === 'text' ? 'block' : 'none';
       deleteBtn.style.display = isMe ? 'block' : 'none';
-
       msgPopup.style.display = 'block';
       msgPopup.style.visibility = 'hidden';
       const w = msgPopup.offsetWidth;
       const h = msgPopup.offsetHeight;
       msgPopup.style.visibility = 'visible';
-
       let left = Math.min(x, window.innerWidth - w - 10);
       let top = Math.min(y, window.innerHeight - h - 10);
       left = Math.max(10, left);
       top = Math.max(10, top);
-
       msgPopup.style.top = top + 'px';
       msgPopup.style.left = left + 'px';
-
       popupTimeout = setTimeout(() => {
         popupCloseHandler = (e) => {
-          if (!msgPopup.contains(e.target)) {
-            hideMsgPopup();
-          }
+          if (!msgPopup.contains(e.target)) hideMsgPopup();
         };
         document.addEventListener('click', popupCloseHandler);
       }, 200);
     }
-
     function hideMsgPopup() {
       msgPopup.style.display = 'none';
       msgPopup.style.visibility = '';
@@ -852,7 +841,6 @@
         e.preventDefault();
         showMsgPopup(e.clientX, e.clientY, msg);
       });
-
       let touchTimer;
       row.addEventListener('touchstart', (e) => {
         touchTimer = setTimeout(() => {
@@ -862,12 +850,10 @@
       });
       row.addEventListener('touchend', () => clearTimeout(touchTimer));
       row.addEventListener('touchmove', () => clearTimeout(touchTimer));
-
       row.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         showMsgPopup(e.clientX, e.clientY, msg);
       });
-
       const optionsBtn = document.createElement('span');
       optionsBtn.className = 'msg-options';
       optionsBtn.innerHTML = '⋮';
@@ -922,7 +908,6 @@
         const row = document.createElement('div');
         row.className = `message-row ${isMe ? 'me' : 'you'}`;
         row.dataset.id = msg.id;
-
         let content = '';
         if (msg.replyTo) {
           const replied = getMessageById(msg.replyTo);
@@ -940,7 +925,6 @@
         } else if (msg.type === 'audio') {
           content += `<div class="bubble audio-msg"><audio controls src="${msg.fileData}"></audio></div>`;
         }
-
         const timeStr = msg.timestamp ? formatTime(msg.timestamp) : '';
         let statusHtml = '';
         if (isMe) {
@@ -952,7 +936,6 @@
         }
         content += `<div class="timestamp">${timeStr} ${statusHtml}</div>`;
         row.innerHTML = content;
-
         addMessageMenu(row, msg);
         messagesDiv.appendChild(row);
       });
@@ -1026,7 +1009,7 @@
       sp.appendChild(span);
     });
 
-    // Qo'ng'iroq tizimi
+    // Yangi qo'ng'iroq tizimi
     document.getElementById('callBtn').addEventListener('click', () => {
       if (callActive) return;
       callTypeModal.classList.add('active');
@@ -1056,7 +1039,17 @@
         createPeerConnection();
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        set(ref(db, 'calls/current'), { type: 'offer', sdp: pc.localDescription, from: currentUser.username, callType });
+        // Taklifni yo'naltirish
+        await set(ref(db, `${CALL_PATH}/offer`), {
+          type: 'offer',
+          sdp: pc.localDescription,
+          from: currentUser.username,
+          callType: callType
+        });
+        // Eski nomzodlar va javobni tozalash
+        await remove(ref(db, `${CALL_PATH}/candidates`));
+        await remove(ref(db, `${CALL_PATH}/answer`));
+        await remove(ref(db, `${CALL_PATH}/hangup`));
       } catch (e) {
         alert('Kamera/mikrofon ruxsati kerak');
         callModal.classList.remove('active');
@@ -1065,6 +1058,7 @@
     }
 
     function createPeerConnection() {
+      if (pc) pc.close();
       pc = new RTCPeerConnection({
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
@@ -1075,20 +1069,20 @@
           }
         ]
       });
-      pc.onicecandidate = e => {
+      pc.onicecandidate = (e) => {
         if (e.candidate) {
-          set(ref(db, 'calls/current'), { type: 'candidate', candidate: e.candidate, from: currentUser.username });
+          push(ref(db, `${CALL_PATH}/candidates`), e.candidate.toJSON());
         }
       };
-      pc.ontrack = e => {
-        if (e.streams[0]) remoteVideo.srcObject = e.streams[0];
+      pc.ontrack = (e) => {
+        remoteVideo.srcObject = e.streams[0];
       };
       if (localStream) {
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       }
     }
 
-    function showIncomingCall(data) {
+    async function showIncomingCall(data) {
       if (callActive || incomingCallData) return;
       incomingCallData = data;
       document.getElementById('incomingCallTitle').textContent = `📞 ${partner.nickname} qo'ng'iroq qilmoqda`;
@@ -1096,7 +1090,7 @@
       incomingCallModal.classList.add('active');
       incomingCallTimer = setTimeout(() => {
         if (incomingCallData) {
-          set(ref(db, 'calls/current'), { type: 'reject', from: currentUser.username });
+          set(ref(db, `${CALL_PATH}/hangup`), { from: currentUser.username });
           hideIncomingCall();
           if (notificationsEnabled) showNotification('Qo\'ng\'iroq vaqti tugadi', `${partner.nickname} qo\'ng\'irog\'i avtomatik rad etildi`);
         }
@@ -1127,18 +1121,22 @@
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        set(ref(db, 'calls/current'), { type: 'answer', sdp: pc.localDescription, from: currentUser.username });
+        await set(ref(db, `${CALL_PATH}/answer`), {
+          type: 'answer',
+          sdp: pc.localDescription,
+          from: currentUser.username
+        });
         callModal.classList.add('active');
         callActive = true;
       } catch (e) {
         alert('Media ruxsati kerak');
-        set(ref(db, 'calls/current'), { type: 'reject', from: currentUser.username });
+        set(ref(db, `${CALL_PATH}/hangup`), { from: currentUser.username });
       }
     });
 
     document.getElementById('declineCallBtn').addEventListener('click', () => {
       hideIncomingCall();
-      set(ref(db, 'calls/current'), { type: 'reject', from: currentUser.username });
+      set(ref(db, `${CALL_PATH}/hangup`), { from: currentUser.username });
     });
 
     function endCall() {
@@ -1149,7 +1147,8 @@
       callModal.classList.remove('active');
       callActive = false;
       if (incomingCallData) hideIncomingCall();
-      set(ref(db, 'calls/current'), { type: 'hangup', from: currentUser.username });
+      // Qo'ng'iroq tugagani haqida xabar berish
+      set(ref(db, `${CALL_PATH}/hangup`), { from: currentUser?.username || 'unknown' });
     }
     document.getElementById('hangupBtn').addEventListener('click', endCall);
 
@@ -1171,7 +1170,6 @@
       }
     }
 
-    // Sozlamalar
     document.getElementById('settingsBtn').addEventListener('click', () => settingsModal.classList.add('active'));
     document.getElementById('closeSettingsBtn').addEventListener('click', () => settingsModal.classList.remove('active'));
     document.getElementById('savePicBtn').addEventListener('click', () => {
@@ -1190,7 +1188,6 @@
       bgMusicLight.pause(); bgMusicDark.pause();
     });
 
-    // Login
     document.getElementById('nextBtn').addEventListener('click', () => {
       const u = usernameInput.value.trim(); const p = passwordInput.value;
       const user = USERS[u]; if (user && user.password === p) { currentUser = user; loginError.textContent = ''; step1.classList.remove('active'); step2.classList.add('active'); keywordInput.focus(); setLoginVideo('2.mp4'); }
@@ -1202,7 +1199,7 @@
     });
 
     async function startChat() {
-      hideLoginVideo(); // Chatga o'tganda video fon yashiriladi
+      hideLoginVideo();
       partner = currentUser.username === 'user_1' ? USERS.user_2 : USERS.user_1;
       partnerNameEl.textContent = partner.nickname; updatePartnerProfile();
       loginScreen.style.display = 'none'; chatScreen.classList.add('active'); chatActive = true;
@@ -1213,7 +1210,6 @@
       window.addEventListener('beforeunload', () => { if (currentUser) sendPresence(false); });
     }
 
-    // Dastlabki video va theme
     setLoginVideo('1.mp4');
     applyTheme();
   </script>
